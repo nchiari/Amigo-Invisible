@@ -132,6 +132,7 @@
         <p class="hint">Los enlaces no muestran a quién le tocó quién, así podés jugar vos también sin espiar. 🙈</p>
         <ul id="sendList" class="sendlist"></ul>
         <button id="retryBtn" class="btn btn--primary hidden" type="button">Reintentar los que fallaron</button>
+        <button id="secretBtn" class="btn btn--ghost" type="button">🔒 Ver quién le tocó a quién</button>
       </div>
     </section>
 
@@ -145,6 +146,22 @@
       <button class="btn btn--ghost btn--sm" data-close type="button">Cerrar ✕</button>
     </div>
     <iframe id="previewFrame" title="Vista previa del correo"></iframe>
+  </dialog>
+
+  <!-- Modal resultados (con código) -->
+  <dialog id="secretDialog" class="dialog dialog--small">
+    <div class="dialog__head">
+      <b>🔒 Resultados del sorteo</b>
+      <button class="btn btn--ghost btn--sm" data-close type="button">Cerrar ✕</button>
+    </div>
+    <div class="secret">
+      <form id="codeForm" class="secret__form" autocomplete="off">
+        <input id="codeInput" type="password" inputmode="numeric" maxlength="12" placeholder="Código" aria-label="Código">
+        <button class="btn btn--primary" type="submit">Ver</button>
+      </form>
+      <p id="codeError" class="secret__error hidden">Código incorrecto 🙅</p>
+      <ul id="secretList" class="pairs hidden"></ul>
+    </div>
   </dialog>
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>

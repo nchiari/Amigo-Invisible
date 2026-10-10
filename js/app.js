@@ -458,6 +458,52 @@
     $('retryBtn').classList.toggle('hidden', !state.draw.some(e => e.status === 'error'));
   }
 
+  /* ---------- Resultados con código ---------- */
+  // Hash SHA-256 del código, para que no figure en texto plano en el código fuente
+  const CODE_HASH = '56a3a46a3ba4fb713fd3e4cfa51a5748abf2c2662fefb0b5a863fdef34572255';
+
+  async function sha256(text) {
+    const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
+    return [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, '0')).join('');
+  }
+
+  function resetSecret() {
+    $('codeInput').value = '';
+    $('codeForm').classList.remove('hidden');
+    $('codeError').classList.add('hidden');
+    $('secretList').classList.add('hidden');
+    $('secretList').innerHTML = '';
+  }
+
+  $('secretBtn').addEventListener('click', () => {
+    resetSecret();
+    $('secretDialog').showModal();
+    $('codeInput').focus();
+  });
+
+  $('codeForm').addEventListener('submit', async ev => {
+    ev.preventDefault();
+    if (await sha256($('codeInput').value.trim()) !== CODE_HASH) {
+      $('codeError').classList.remove('hidden');
+      $('codeInput').value = '';
+      $('codeForm').classList.remove('shake'); void $('codeForm').offsetWidth; $('codeForm').classList.add('shake');
+      return;
+    }
+    const pairs = (state.draw || []).map(e => AI.decodeToken(new URL(e.link).searchParams.get('t')));
+    const to = Object.fromEntries(pairs.map(p => [p.g, p.r]));
+    $('secretList').innerHTML = pairs.map(p => `
+      <li><b>${AI.escapeHtml(p.g)}</b><span>🎁 →</span><b>${AI.escapeHtml(p.r)}</b>${to[p.r] === p.g ? '<i title="Se regalan entre sí">⇄</i>' : ''}</li>`).join('');
+    $('codeForm').classList.add('hidden');
+    $('codeError').classList.add('hidden');
+    $('secretList').classList.remove('hidden');
+  });
+
+  // Al cerrar se borra todo, así no queda nada a la vista
+  $('secretDialog').addEventListener('click', ev => {
+    if (ev.target.matches('[data-close]') || ev.target === $('secretDialog')) $('secretDialog').close();
+  });
+  $('secretDialog').addEventListener('close', resetSecret);
+
   /* ---------- Vista previa ---------- */
   $('previewBtn').addEventListener('click', () => {
     const sample = state.participants[0] || { name: 'Nancy' };
