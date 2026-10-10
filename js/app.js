@@ -161,31 +161,32 @@
   /* ---------- Reglas secretas ---------- */
   function fillSelect(sel) {
     const prev = sel.value;
-    sel.innerHTML = state.participants.map(p => `<option value="${p.id}">${AI.escapeHtml(p.name)}</option>`).join('');
+    sel.innerHTML = '<option value="">Elegí…</option>' + state.participants.map(p => `<option value="${p.id}">${AI.escapeHtml(p.name)}</option>`).join('');
     if (byId(prev)) sel.value = prev;
   }
 
   $('addForce').addEventListener('click', () => {
     const from = $('forceFrom').value, to = $('forceTo').value;
-    if (!from || !to) return;
+    if (!from || !to) return toast('Elegí las dos personas 👆');
     if (from === to) return toast('No se puede regalar a sí mismo 😅');
     if (state.forced.some(r => r.to === to && r.from !== from)) return toast(`A ${byId(to).name} ya le regala otra persona fija`);
     if (state.excluded.some(r => r.from === from && r.to === to)) return toast('Esa combinación está excluida');
     state.forced = state.forced.filter(r => r.from !== from);
     state.forced.push({ from, to });
-    invalidateDraw(); save(); renderRules();
+    invalidateDraw(); save(); renderRules(true);
   });
 
   $('addExcl').addEventListener('click', () => {
     const from = $('exclFrom').value, to = $('exclTo').value;
-    if (!from || !to || from === to) return;
+    if (!from || !to) return toast('Elegí las dos personas 👆');
+    if (from === to) return;
     const pairs = [{ from, to }];
     if ($('exclMutual').checked) pairs.push({ from: to, to: from });
     pairs.forEach(p => {
       if (state.forced.some(r => r.from === p.from && r.to === p.to)) return;
       if (!state.excluded.some(r => r.from === p.from && r.to === p.to)) state.excluded.push(p);
     });
-    invalidateDraw(); save(); renderRules();
+    invalidateDraw(); save(); renderRules(true);
   });
 
   function renderRuleList(listId, rules, label, key) {
@@ -202,8 +203,11 @@
     });
   }
 
-  function renderRules() {
-    ['forceFrom', 'forceTo', 'exclFrom', 'exclTo'].forEach(id => fillSelect($(id)));
+  function renderRules(reset) {
+    ['forceFrom', 'forceTo', 'exclFrom', 'exclTo'].forEach(id => {
+      if (reset) $(id).value = '';
+      fillSelect($(id));
+    });
     renderRuleList('forceList', state.forced, '→ regala a →', 'forced');
     renderRuleList('exclList', state.excluded, '✕ no regala a', 'excluded');
   }
