@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Amigo Invisible 🎁</title>
+  <meta name="description" content="Organizá tu sorteo de amigo invisible y avisale a todos por correo.">
+  <meta name="theme-color" content="#e63946">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎁</text></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <div class="snow" aria-hidden="true"></div>
+
+  <header class="hero">
+    <div class="hero__icon">🎁</div>
+    <h1>Amigo Invisible</h1>
+    <p>Armá el sorteo, escribí un mensaje y que a cada uno le llegue su secreto por correo.</p>
+  </header>
+
+  <main class="container">
+
+    <!-- 1. Evento -->
+    <section class="card">
+      <h2><span class="step">1</span> El evento</h2>
+      <label class="field">
+        <span>Nombre del evento</span>
+        <input id="eventName" type="text" placeholder="Navidad en familia 2026" maxlength="80">
+      </label>
+      <div class="row">
+        <label class="field">
+          <span>Presupuesto</span>
+          <input id="eventBudget" type="text" placeholder="20 €" maxlength="30">
+        </label>
+        <label class="field">
+          <span>Fecha del intercambio</span>
+          <input id="eventDate" type="date">
+        </label>
+      </div>
+    </section>
+
+    <!-- 2. Participantes -->
+    <section class="card">
+      <h2><span class="step">2</span> Participantes <span id="countBadge" class="badge">0</span></h2>
+      <form id="addForm" class="add-form" autocomplete="off">
+        <input id="pName" type="text" placeholder="Nombre" required maxlength="40">
+        <input id="pEmail" type="email" placeholder="correo@ejemplo.com" required>
+        <button class="btn btn--primary" type="submit" aria-label="Añadir participante">＋ Añadir</button>
+      </form>
+      <details class="bulk">
+        <summary>📋 Pegar una lista entera</summary>
+        <p class="hint">Una persona por línea: <code>Nombre, correo</code></p>
+        <textarea id="bulkInput" rows="4" placeholder="Nancy, nancy@mail.com&#10;Santi, santi@mail.com"></textarea>
+        <button id="bulkAdd" class="btn btn--ghost" type="button">Añadir todos</button>
+      </details>
+      <ul id="participantList" class="plist"></ul>
+      <p id="emptyList" class="empty">Todavía no hay nadie. ¡Sumá al menos 3 personas! 🧑‍🤝‍🧑</p>
+    </section>
+
+    <!-- 3. Mensaje -->
+    <section class="card">
+      <h2><span class="step">3</span> Tu mensaje</h2>
+      <label class="field">
+        <span>Asunto del correo</span>
+        <input id="mailSubject" type="text" maxlength="120">
+      </label>
+      <label class="field">
+        <span>Mensaje para todos</span>
+        <textarea id="mailMessage" rows="6"></textarea>
+      </label>
+      <div class="emoji-bar" id="emojiBar" aria-label="Emojis"></div>
+      <p class="hint">Tocá un emoji para meterlo donde está el cursor. Podés usar <code>{nombre}</code> y se reemplaza por el nombre de cada uno.</p>
+    </section>
+
+    <!-- Opciones avanzadas (discretas) -->
+    <section class="card card--quiet">
+      <details id="advanced">
+        <summary>⚙️ Opciones avanzadas</summary>
+        <p class="hint">Esto queda solo en este navegador. En los correos no aparece nada: el resultado se ve 100% al azar.</p>
+
+        <h3>🔗 Tiene que tocarle a…</h3>
+        <div class="rule-form">
+          <select id="forceFrom"></select>
+          <span class="arrow">regala a</span>
+          <select id="forceTo"></select>
+          <button id="addForce" class="btn btn--ghost btn--sm" type="button">Fijar</button>
+        </div>
+        <ul id="forceList" class="rules"></ul>
+
+        <h3>🚫 Nunca le puede tocar…</h3>
+        <div class="rule-form">
+          <select id="exclFrom"></select>
+          <span class="arrow">no regala a</span>
+          <select id="exclTo"></select>
+          <button id="addExcl" class="btn btn--ghost btn--sm" type="button">Excluir</button>
+        </div>
+        <label class="check"><input id="exclMutual" type="checkbox" checked> Aplicar en los dos sentidos</label>
+        <ul id="exclList" class="rules"></ul>
+
+        <label class="check"><input id="avoidPairs" type="checkbox" checked> Evitar que dos personas se regalen entre sí</label>
+      </details>
+    </section>
+
+    <!-- 4. Envío -->
+    <section class="card">
+      <h2><span class="step">4</span> Sorteo y envío</h2>
+
+      <details id="mailConfig" class="config">
+        <summary>✉️ Configurar el envío de correos <span id="configStatus" class="pill">sin configurar</span></summary>
+        <p class="hint">Se usa <a href="https://www.emailjs.com/" target="_blank" rel="noopener">EmailJS</a> (gratis, 200 correos/mes). En el <a href="https://github.com/nchiari/Amigo-Invisible#configurar-emailjs" target="_blank" rel="noopener">README</a> está el paso a paso.</p>
+        <label class="field"><span>Public Key</span><input id="ejsKey" type="text" placeholder="aBcD1234..." autocomplete="off"></label>
+        <label class="field"><span>Service ID</span><input id="ejsService" type="text" placeholder="service_xxxxx" autocomplete="off"></label>
+        <label class="field"><span>Template ID</span><input id="ejsTemplate" type="text" placeholder="template_xxxxx" autocomplete="off"></label>
+        <label class="field"><span>Tu nombre (remitente)</span><input id="fromName" type="text" placeholder="Nico" maxlength="40"></label>
+      </details>
+
+      <label class="check check--test">
+        <input id="testMode" type="checkbox">
+        <span>🧪 <b>Modo prueba:</b> todos los correos me llegan a mí</span>
+      </label>
+      <label id="testEmailWrap" class="field hidden">
+        <span>Mi correo para la prueba</span>
+        <input id="testEmail" type="email" placeholder="yo@mail.com">
+      </label>
+
+      <div class="actions">
+        <button id="previewBtn" class="btn btn--ghost" type="button">👀 Vista previa del correo</button>
+        <button id="drawBtn" class="btn btn--primary btn--big" type="button">🎲 Sortear y enviar</button>
+      </div>
+
+      <div id="results" class="results hidden">
+        <div class="results__head">
+          <h3>📬 Envíos</h3>
+          <button id="redrawBtn" class="btn btn--ghost btn--sm" type="button">🔄 Volver a sortear</button>
+        </div>
+        <p class="hint">Los enlaces no muestran a quién le tocó quién, así podés jugar vos también sin espiar. 🙈</p>
+        <ul id="sendList" class="sendlist"></ul>
+        <button id="retryBtn" class="btn btn--primary hidden" type="button">Reintentar los que fallaron</button>
+      </div>
+    </section>
+
+    <footer class="foot">Hecho con 🎄 y café de especialidad ☕</footer>
+  </main>
+
+  <!-- Modal vista previa -->
+  <dialog id="previewDialog" class="dialog">
+    <div class="dialog__head">
+      <b>Vista previa</b>
+      <button class="btn btn--ghost btn--sm" data-close type="button">Cerrar ✕</button>
+    </div>
+    <iframe id="previewFrame" title="Vista previa del correo"></iframe>
+  </dialog>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <script src="js/shared.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

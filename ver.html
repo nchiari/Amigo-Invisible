@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Tu Amigo Invisible 🤫</title>
+  <meta name="robots" content="noindex">
+  <meta name="theme-color" content="#e63946">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🤫</text></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body class="reveal-page">
+  <div class="snow" aria-hidden="true"></div>
+  <canvas id="confetti" aria-hidden="true"></canvas>
+
+  <main class="reveal">
+    <p id="hello" class="reveal__hello">¡Hola!</p>
+    <h1 id="eventTitle" class="reveal__event">Amigo Invisible</h1>
+
+    <button id="gift" class="gift" type="button" aria-label="Abrir el regalo">
+      <span class="gift__lid"></span>
+      <span class="gift__box"></span>
+      <span class="gift__ribbon"></span>
+    </button>
+    <p id="tapHint" class="reveal__hint">Tocá el regalo para descubrirlo 👆</p>
+
+    <div id="result" class="reveal__result hidden">
+      <p class="reveal__label">Te tocó regalarle a…</p>
+      <p id="receiver" class="reveal__name"></p>
+      <div id="details" class="reveal__details"></div>
+      <p class="reveal__secret">🤫 Guardá el secreto. ¡Nadie más lo sabe!</p>
+    </div>
+
+    <div id="error" class="reveal__error hidden">
+      <p>😕 Este enlace no es válido o está incompleto.</p>
+      <p class="hint">Probá abrirlo de nuevo desde el botón del correo.</p>
+    </div>
+  </main>
+
+  <script src="js/shared.js"></script>
+  <script src="js/reveal.js"></script>
+</body>
+</html>
