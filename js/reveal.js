@@ -5,7 +5,7 @@
 
   let data = null;
   if (params.has('demo')) {
-    data = { g: 'Nancy', r: 'Rufi 🐶', e: 'Navidad en familia', b: '20 €', d: '' };
+    data = { g: 'Nancy', r: 'Rufi 🐶', e: 'Navidad en familia', b: '30 €', d: '' };
   } else {
     try { data = AI.decodeToken(params.get('t') || location.hash.slice(1)); } catch { data = null; }
   }
