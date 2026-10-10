@@ -292,8 +292,9 @@
     if (state.draw) { state.draw = null; renderResults(); }
   }
 
-  function buildLink(giver, receiver) {
+  function buildLink(giver, receiver, drawId) {
     const token = AI.encodeToken({
+      i: drawId, // identifica el sorteo: los enlaces de pruebas viejas no lo tienen
       g: giver.name, r: receiver.name,
       e: state.event.name, b: state.event.budget, d: state.event.date
     });
@@ -386,9 +387,10 @@
     const broken = checkRules(assign);
     if (broken) { alert('⛔ El sorteo no se envió: ' + broken); return; }
 
+    const drawId = uid();
     state.draw = state.participants.map(p => ({
       id: p.id,
-      link: buildLink(p, byId(assign[p.id])),
+      link: buildLink(p, byId(assign[p.id]), drawId),
       status: 'pending'
     }));
     save(); renderResults();

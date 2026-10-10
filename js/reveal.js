@@ -5,7 +5,7 @@
 
   let data = null;
   if (params.has('demo')) {
-    data = { g: 'Nancy', r: 'Rufi 🐶', e: 'Navidad en familia', b: '30 €', d: '' };
+    data = { i: 'demo', g: 'Nancy', r: 'Rufi 🐶', e: 'Navidad en familia', b: '30 €', d: '' };
   } else {
     try { data = AI.decodeToken(params.get('t') || location.hash.slice(1)); } catch { data = null; }
   }
@@ -27,6 +27,16 @@
     $('tapHint').classList.add('hidden');
     $('hello').classList.add('hidden');
     $('error').classList.remove('hidden');
+    return;
+  }
+
+  // Enlaces de los correos de prueba enviados antes de existir el identificador de sorteo
+  if (!data.i) {
+    $('gift').classList.add('hidden');
+    $('tapHint').classList.add('hidden');
+    $('hello').textContent = `¡Hola, ${data.g}! 👋`;
+    $('eventTitle').textContent = data.e || 'Amigo Invisible';
+    $('old').classList.remove('hidden');
     return;
   }
 
