@@ -169,10 +169,16 @@
     const from = $('forceFrom').value, to = $('forceTo').value;
     if (!from || !to) return toast('Elegí las dos personas 👆');
     if (from === to) return toast('No se puede regalar a sí mismo 😅');
-    if (state.forced.some(r => r.to === to && r.from !== from)) return toast(`A ${byId(to).name} ya le regala otra persona fija`);
-    if (state.excluded.some(r => r.from === from && r.to === to)) return toast('Esa combinación está excluida');
-    state.forced = state.forced.filter(r => r.from !== from);
-    state.forced.push({ from, to });
+    const pairs = [{ from, to }];
+    if ($('forceMutual').checked) pairs.push({ from: to, to: from });
+    const givers = pairs.map(p => p.from);
+    // Las reglas viejas de estas mismas personas se reemplazan
+    const others = state.forced.filter(r => !givers.includes(r.from));
+    for (const p of pairs) {
+      if (others.some(r => r.to === p.to)) return toast(`A ${byId(p.to).name} ya le regala otra persona fija`);
+      if (state.excluded.some(r => r.from === p.from && r.to === p.to)) return toast('Esa combinación está excluida');
+    }
+    state.forced = others.concat(pairs);
     invalidateDraw(); save(); renderRules(true);
   });
 
@@ -189,14 +195,21 @@
     invalidateDraw(); save(); renderRules(true);
   });
 
-  function renderRuleList(listId, rules, label, key) {
+  // Muestra A ⇄ B en una sola línea cuando la regla va en los dos sentidos
+  function renderRuleList(listId, key, label, mutualLabel) {
     const ul = $(listId);
     ul.innerHTML = '';
-    rules.forEach((r, i) => {
+    const rules = state[key];
+    const shown = new Set();
+    rules.forEach(r => {
+      if (shown.has(r)) return;
+      const back = rules.find(o => o.from === r.to && o.to === r.from);
+      const group = back ? [r, back] : [r];
+      group.forEach(g => shown.add(g));
       const li = document.createElement('li');
-      li.innerHTML = `<span>${AI.escapeHtml(byId(r.from)?.name)} <i>${label}</i> ${AI.escapeHtml(byId(r.to)?.name)}</span><button class="icon-btn" type="button" aria-label="Quitar regla">✕</button>`;
+      li.innerHTML = `<span>${AI.escapeHtml(byId(r.from)?.name)} <i>${back ? mutualLabel : label}</i> ${AI.escapeHtml(byId(r.to)?.name)}</span><button class="icon-btn" type="button" aria-label="Quitar regla">✕</button>`;
       li.querySelector('button').addEventListener('click', () => {
-        state[key].splice(i, 1);
+        state[key] = state[key].filter(x => !group.includes(x));
         invalidateDraw(); save(); renderRules();
       });
       ul.appendChild(li);
@@ -208,8 +221,8 @@
       if (reset) $(id).value = '';
       fillSelect($(id));
     });
-    renderRuleList('forceList', state.forced, '→ regala a →', 'forced');
-    renderRuleList('exclList', state.excluded, '✕ no regala a', 'excluded');
+    renderRuleList('forceList', 'forced', '→ regala a →', '⇄ se regalan entre sí ⇄');
+    renderRuleList('exclList', 'excluded', '✕ no regala a', '✕ no se tocan entre sí ✕');
   }
 
   /* ---------- Sorteo ---------- */
@@ -254,6 +267,19 @@
       return false;
     }
     return bt(0) ? assign : null;
+  }
+
+  /* Control final: si algo no cuadra, no se manda nada */
+  function checkRules(assign) {
+    const ids = state.participants.map(p => p.id);
+    if (ids.some(g => !assign[g])) return 'alguien quedó sin asignar.';
+    if (ids.some(g => assign[g] === g)) return 'a alguien le tocó sí mismo.';
+    if (new Set(ids.map(g => assign[g])).size !== ids.length) return 'alguien recibe dos regalos.';
+    const f = state.forced.find(r => assign[r.from] !== r.to);
+    if (f) return `no se respetó que ${byId(f.from).name} le regale a ${byId(f.to).name}.`;
+    const x = state.excluded.find(r => assign[r.from] === r.to);
+    if (x) return `no se respetó que ${byId(x.from).name} no le regale a ${byId(x.to).name}.`;
+    return null;
   }
 
   function invalidateDraw() {
@@ -351,6 +377,8 @@
     let assign = solve(state.avoidPairs);
     if (!assign && state.avoidPairs) assign = solve(false);
     if (!assign) return toast('😵 Con esas reglas no hay sorteo posible. Aflojá alguna opción avanzada.', 4500);
+    const broken = checkRules(assign);
+    if (broken) { alert('⛔ El sorteo no se envió: ' + broken); return; }
 
     state.draw = state.participants.map(p => ({
       id: p.id,
