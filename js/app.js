@@ -10,13 +10,14 @@
     subject: '🎁 ¡Ya tenemos amigo invisible!',
     message: 'Este año jugamos al amigo invisible 🎄✨\nTocá el botón para descubrir a quién le vas a regalar. ¡Shhh, es secreto! 🤫',
     forced: [],
-    excluded: [],
     avoidPairs: true,
     ejs: { key: '', service: '', template: '' },
     fromName: '',
     testMode: false,
     testEmail: '',
-    draw: null // [{ id, link, status }]
+    draw: null, // [{ id, link, status }]
+    drafts: {}, // lo que está a medio escribir
+    open: {}    // secciones desplegadas
   };
 
   let state = load();
@@ -24,7 +25,11 @@
   function load() {
     try {
       const saved = JSON.parse(localStorage.getItem(STORE));
-      return saved ? { ...defaults, ...saved } : structuredClone(defaults);
+      if (!saved) return structuredClone(defaults);
+      delete saved.excluded; // opción eliminada: que no quede ninguna regla oculta
+      // Un envío cortado por un F5 queda para reintentar
+      (saved.draw || []).forEach(e => { if (e.status === 'sending') { e.status = 'error'; e.error = 'Se interrumpió al recargar'; } });
+      return { ...structuredClone(defaults), ...saved };
     } catch { return structuredClone(defaults); }
   }
   function save() {
@@ -67,6 +72,24 @@
   bindInput('fromName', () => state.fromName, v => state.fromName = v);
   bindInput('testMode', () => state.testMode, v => state.testMode = v);
   bindInput('testEmail', () => state.testEmail, v => state.testEmail = v);
+
+  /* ---------- Que F5 no borre nada ---------- */
+  ['pName', 'pEmail', 'bulkInput'].forEach(id => {
+    const el = $(id);
+    if (state.drafts[id]) el.value = state.drafts[id];
+    el.addEventListener('input', () => { state.drafts[id] = el.value; save(); });
+  });
+  ['bulk', 'advanced', 'mailConfig'].forEach(id => {
+    const el = $(id);
+    if (state.open[id]) el.open = true;
+    el.addEventListener('toggle', () => { state.open[id] = el.open; save(); });
+  });
+  ['forceMutual'].forEach(id => {
+    const el = $(id);
+    if (id in state.drafts) el.checked = state.drafts[id];
+    el.addEventListener('change', () => { state.drafts[id] = el.checked; save(); });
+  });
+  const clearDrafts = (...ids) => { ids.forEach(id => delete state.drafts[id]); save(); };
 
   function renderTestMode() {
     $('testEmailWrap').classList.toggle('hidden', !state.testMode);
@@ -116,6 +139,7 @@
     if (r === 'dup') return toast('Ese correo ya está en la lista 🤔');
     if (r === 'invalid') return toast('Revisá el nombre y el correo ✍️');
     $('pName').value = ''; $('pEmail').value = '';
+    clearDrafts('pName', 'pEmail');
     $('pName').focus();
     invalidateDraw();
     save(); renderAll();
@@ -129,6 +153,7 @@
       if (m && addParticipant(m[1].replace(/["']/g, ''), m[2]) === 'ok') ok++; else bad++;
     });
     $('bulkInput').value = '';
+    clearDrafts('bulkInput');
     if (ok) invalidateDraw();
     save(); renderAll();
     toast(`✅ ${ok} añadidos${bad ? ` · ⚠️ ${bad} con problemas` : ''}`);
@@ -137,7 +162,6 @@
   function removeParticipant(id) {
     state.participants = state.participants.filter(p => p.id !== id);
     state.forced = state.forced.filter(r => r.from !== id && r.to !== id);
-    state.excluded = state.excluded.filter(r => r.from !== id && r.to !== id);
     invalidateDraw();
     save(); renderAll();
   }
@@ -176,22 +200,8 @@
     const others = state.forced.filter(r => !givers.includes(r.from));
     for (const p of pairs) {
       if (others.some(r => r.to === p.to)) return toast(`A ${byId(p.to).name} ya le regala otra persona fija`);
-      if (state.excluded.some(r => r.from === p.from && r.to === p.to)) return toast('Esa combinación está excluida');
     }
     state.forced = others.concat(pairs);
-    invalidateDraw(); save(); renderRules(true);
-  });
-
-  $('addExcl').addEventListener('click', () => {
-    const from = $('exclFrom').value, to = $('exclTo').value;
-    if (!from || !to) return toast('Elegí las dos personas 👆');
-    if (from === to) return;
-    const pairs = [{ from, to }];
-    if ($('exclMutual').checked) pairs.push({ from: to, to: from });
-    pairs.forEach(p => {
-      if (state.forced.some(r => r.from === p.from && r.to === p.to)) return;
-      if (!state.excluded.some(r => r.from === p.from && r.to === p.to)) state.excluded.push(p);
-    });
     invalidateDraw(); save(); renderRules(true);
   });
 
@@ -217,12 +227,11 @@
   }
 
   function renderRules(reset) {
-    ['forceFrom', 'forceTo', 'exclFrom', 'exclTo'].forEach(id => {
+    ['forceFrom', 'forceTo'].forEach(id => {
       if (reset) $(id).value = '';
       fillSelect($(id));
     });
     renderRuleList('forceList', 'forced', '→ regala a →', '⇄ se regalan entre sí ⇄');
-    renderRuleList('exclList', 'excluded', '✕ no regala a', '✕ no se tocan entre sí ✕');
   }
 
   /* ---------- Sorteo ---------- */
@@ -235,17 +244,16 @@
     return arr;
   }
 
-  /* Backtracking aleatorio: respeta parejas fijas y exclusiones,
+  /* Backtracking aleatorio: respeta las parejas fijas,
      y el resto sale al azar de verdad. */
   function solve(avoidPairs) {
     const ids = state.participants.map(p => p.id);
     const forced = Object.fromEntries(state.forced.map(r => [r.from, r.to]));
-    const excluded = new Set(state.excluded.map(r => r.from + '>' + r.to));
     const forcedTargets = new Set(Object.values(forced));
 
     const options = g => {
       if (forced[g]) return [forced[g]];
-      return shuffle(ids.filter(r => r !== g && !excluded.has(g + '>' + r) && !forcedTargets.has(r)));
+      return shuffle(ids.filter(r => r !== g && !forcedTargets.has(r)));
     };
     // Primero los más restringidos, para cortar ramas rápido
     const givers = shuffle(ids).sort((a, b) => options(a).length - options(b).length);
@@ -277,8 +285,6 @@
     if (new Set(ids.map(g => assign[g])).size !== ids.length) return 'alguien recibe dos regalos.';
     const f = state.forced.find(r => assign[r.from] !== r.to);
     if (f) return `no se respetó que ${byId(f.from).name} le regale a ${byId(f.to).name}.`;
-    const x = state.excluded.find(r => assign[r.from] === r.to);
-    if (x) return `no se respetó que ${byId(x.from).name} no le regale a ${byId(x.to).name}.`;
     return null;
   }
 

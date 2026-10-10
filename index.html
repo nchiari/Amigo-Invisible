@@ -50,7 +50,7 @@
         <input id="pEmail" type="email" placeholder="correo@ejemplo.com" required>
         <button class="btn btn--primary" type="submit" aria-label="Añadir participante">＋ Añadir</button>
       </form>
-      <details class="bulk">
+      <details id="bulk" class="bulk">
         <summary>📋 Pegar una lista entera</summary>
         <p class="hint">Una persona por línea: <code>Nombre, correo</code></p>
         <textarea id="bulkInput" rows="4" placeholder="Nancy, nancy@mail.com&#10;Santi, santi@mail.com"></textarea>
@@ -91,15 +91,7 @@
         <label class="check"><input id="forceMutual" type="checkbox" checked> Que se regalen entre sí (en los dos sentidos)</label>
         <ul id="forceList" class="rules"></ul>
 
-        <h3>🚫 Nunca le puede tocar…</h3>
-        <div class="rule-form">
-          <select id="exclFrom"></select>
-          <span class="arrow">no regala a</span>
-          <select id="exclTo"></select>
-          <button id="addExcl" class="btn btn--ghost btn--sm" type="button">Excluir</button>
-        </div>
-        <label class="check"><input id="exclMutual" type="checkbox" checked> Aplicar en los dos sentidos</label>
-        <ul id="exclList" class="rules"></ul>
+
 
         <label class="check"><input id="avoidPairs" type="checkbox" checked> En el resto del sorteo, evitar que dos personas se regalen entre sí (no afecta a las parejas fijadas arriba)</label>
       </details>
