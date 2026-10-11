@@ -121,7 +121,7 @@
 
       <div class="actions">
         <button id="previewBtn" class="btn btn--ghost" type="button">👀 Vista previa del correo</button>
-        <button id="drawBtn" class="btn btn--primary btn--big" type="button">🎲 Sortear y enviar</button>
+        <button id="drawBtn" class="btn btn--primary btn--big" type="button">🎲 Sortear</button>
       </div>
 
       <div id="results" class="results hidden">
@@ -129,10 +129,10 @@
           <h3>📬 Envíos</h3>
           <button id="redrawBtn" class="btn btn--ghost btn--sm" type="button">🔄 Volver a sortear</button>
         </div>
-        <p class="hint">Los enlaces no muestran a quién le tocó quién, así podés jugar vos también sin espiar. 🙈</p>
+        <p class="hint">Nada se envía hasta que revises el sorteo con tu código y confirmes. 🔒</p>
         <ul id="sendList" class="sendlist"></ul>
         <button id="retryBtn" class="btn btn--primary hidden" type="button">Reintentar los que fallaron</button>
-        <button id="secretBtn" class="btn btn--ghost" type="button">🔒 Ver quién le tocó a quién</button>
+        <button id="secretBtn" class="btn btn--primary btn--big" type="button">🔒 Revisar y enviar</button>
       </div>
     </section>
 
@@ -161,6 +161,11 @@
       </form>
       <p id="codeError" class="secret__error hidden">Código incorrecto 🙅</p>
       <ul id="secretList" class="pairs hidden"></ul>
+      <div id="secretActions" class="secret__actions hidden">
+        <p id="sendInfo" class="hint"></p>
+        <button id="sendBtn" class="btn btn--primary btn--big" type="button">📨 Está bien, enviar</button>
+        <button id="redrawInBtn" class="btn btn--ghost" type="button">🔄 Sortear de nuevo</button>
+      </div>
     </div>
   </dialog>
 

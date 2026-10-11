@@ -350,7 +350,7 @@
   async function sendAll(onlyFailed) {
     if (sending) return;
     sending = true;
-    $('drawBtn').disabled = $('retryBtn').disabled = true;
+    $('drawBtn').disabled = $('retryBtn').disabled = $('secretBtn').disabled = true;
     for (const entry of state.draw) {
       if (onlyFailed && entry.status === 'ok') continue;
       entry.status = 'sending'; renderResults();
@@ -365,7 +365,7 @@
       await sleep(1100); // EmailJS limita la frecuencia de envíos
     }
     sending = false;
-    $('drawBtn').disabled = $('retryBtn').disabled = false;
+    $('drawBtn').disabled = $('retryBtn').disabled = $('secretBtn').disabled = false;
     const fails = state.draw.filter(e => e.status === 'error').length;
     toast(fails ? `⚠️ ${fails} correos fallaron` : '🎉 ¡Correos enviados!', 4000);
   }
@@ -377,15 +377,15 @@
     return null;
   }
 
-  async function runDraw() {
+  function runDraw() {
     const err = validate();
-    if (err) return toast(err);
+    if (err) { toast(err); return false; }
 
     let assign = solve(state.avoidPairs);
     if (!assign && state.avoidPairs) assign = solve(false);
-    if (!assign) return toast('😵 Con esas reglas no hay sorteo posible. Aflojá alguna opción avanzada.', 4500);
+    if (!assign) { toast('😵 Con esas reglas no hay sorteo posible. Revisá las parejas fijadas.', 4500); return false; }
     const broken = checkRules(assign);
-    if (broken) { alert('⛔ El sorteo no se envió: ' + broken); return; }
+    if (broken) { alert('⛔ Sorteo descartado: ' + broken); return false; }
 
     const drawId = uid();
     state.draw = state.participants.map(p => ({
@@ -394,25 +394,21 @@
       status: 'pending'
     }));
     save(); renderResults();
-    $('results').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    return true;
+  }
 
-    if (!ejsReady()) {
-      $('mailConfig').open = true;
-      toast('🎲 Sorteo hecho. Configurá EmailJS para enviar, o copiá los enlaces a mano.', 5000);
-      return;
-    }
-    const who = state.testMode ? `a tu correo (${state.testEmail})` : `a ${state.draw.length} personas`;
-    if (!confirm(`¿Enviar los correos ${who}?`)) return;
-    sendAll(false);
+  // Si ya salieron correos reales, sortear de nuevo deja esos enlaces desactualizados
+  function canRedraw() {
+    return !(state.draw && state.draw.some(e => e.status === 'ok') && !state.testMode) ||
+      confirm('Ya enviaste correos de este sorteo. Si sorteás de nuevo, esos enlaces quedan desactualizados. ¿Seguir?');
   }
 
   $('drawBtn').addEventListener('click', () => {
-    if (state.draw && state.draw.some(e => e.status === 'ok') && !state.testMode &&
-        !confirm('Ya enviaste un sorteo. Si sorteás de nuevo, los enlaces viejos quedan desactualizados. ¿Seguir?')) return;
-    runDraw();
+    if (!canRedraw()) return;
+    if (runDraw()) openReview();
   });
   $('redrawBtn').addEventListener('click', () => {
-    if (confirm('¿Hacer un sorteo nuevo? Los enlaces anteriores dejan de valer para este juego.')) runDraw();
+    if (canRedraw() && runDraw()) openReview();
   });
   $('retryBtn').addEventListener('click', () => {
     if (!ejsReady()) { $('mailConfig').open = true; return toast('Primero configurá EmailJS ✉️'); }
@@ -421,7 +417,7 @@
 
   /* ---------- Resultados ---------- */
   const STATUS = {
-    pending: ['⏳', 'Pendiente'],
+    pending: ['⏳', 'Sorteado, falta enviar'],
     sending: ['📤', 'Enviando…'],
     ok: ['✅', 'Enviado'],
     error: ['⚠️', 'Falló']
@@ -456,6 +452,9 @@
       ul.appendChild(li);
     });
     $('retryBtn').classList.toggle('hidden', !state.draw.some(e => e.status === 'error'));
+    const unsent = state.draw.some(e => e.status === 'pending');
+    $('secretBtn').textContent = unsent ? '🔒 Revisar y enviar' : '🔒 Ver quién le tocó a quién';
+    $('secretBtn').className = 'btn ' + (unsent ? 'btn--primary btn--big' : 'btn--ghost');
   }
 
   /* ---------- Resultados con código ---------- */
@@ -473,13 +472,31 @@
     $('codeError').classList.add('hidden');
     $('secretList').classList.add('hidden');
     $('secretList').innerHTML = '';
+    $('secretActions').classList.add('hidden');
   }
 
-  $('secretBtn').addEventListener('click', () => {
+  function openReview() {
     resetSecret();
     $('secretDialog').showModal();
     $('codeInput').focus();
-  });
+  }
+  $('secretBtn').addEventListener('click', openReview);
+
+  function showPairs() {
+    const pairs = (state.draw || []).map(e => AI.decodeToken(new URL(e.link).searchParams.get('t')));
+    const to = Object.fromEntries(pairs.map(p => [p.g, p.r]));
+    $('secretList').innerHTML = pairs.map(p => `
+      <li><b>${AI.escapeHtml(p.g)}</b><span>🎁 →</span><b>${AI.escapeHtml(p.r)}</b>${to[p.r] === p.g ? '<i title="Se regalan entre sí">⇄</i>' : ''}</li>`).join('');
+    $('secretList').classList.remove('hidden');
+
+    // Envío desde la revisión: solo los que todavía no salieron
+    const toSend = (state.draw || []).filter(e => e.status !== 'ok').length;
+    $('secretActions').classList.toggle('hidden', !toSend);
+    $('sendBtn').textContent = `📨 Está bien, enviar ${toSend} correo${toSend === 1 ? '' : 's'}`;
+    $('sendInfo').textContent = state.testMode
+      ? `🧪 Modo prueba: todos los correos van a ${state.testEmail}.`
+      : '⚠️ Los correos van a los participantes de verdad.';
+  }
 
   $('codeForm').addEventListener('submit', async ev => {
     ev.preventDefault();
@@ -489,13 +506,25 @@
       $('codeForm').classList.remove('shake'); void $('codeForm').offsetWidth; $('codeForm').classList.add('shake');
       return;
     }
-    const pairs = (state.draw || []).map(e => AI.decodeToken(new URL(e.link).searchParams.get('t')));
-    const to = Object.fromEntries(pairs.map(p => [p.g, p.r]));
-    $('secretList').innerHTML = pairs.map(p => `
-      <li><b>${AI.escapeHtml(p.g)}</b><span>🎁 →</span><b>${AI.escapeHtml(p.r)}</b>${to[p.r] === p.g ? '<i title="Se regalan entre sí">⇄</i>' : ''}</li>`).join('');
     $('codeForm').classList.add('hidden');
     $('codeError').classList.add('hidden');
-    $('secretList').classList.remove('hidden');
+    showPairs();
+  });
+
+  $('sendBtn').addEventListener('click', () => {
+    if (!ejsReady()) {
+      $('secretDialog').close();
+      $('mailConfig').open = true;
+      $('mailConfig').scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return toast('Primero configurá EmailJS ✉️ (o copiá los enlaces a mano)', 4500);
+    }
+    $('secretDialog').close();
+    $('results').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    sendAll(true);
+  });
+
+  $('redrawInBtn').addEventListener('click', () => {
+    if (canRedraw() && runDraw()) showPairs(); // sigue desbloqueado: muestra el nuevo resultado
   });
 
   // Al cerrar se borra todo, así no queda nada a la vista
