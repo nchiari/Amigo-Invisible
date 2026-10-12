@@ -36,11 +36,20 @@
     }[c]));
   }
 
-  function formatDate(iso) {
-    if (!iso) return '';
-    const d = new Date(iso + 'T12:00:00');
-    if (isNaN(d)) return '';
-    return d.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' });
+  // Devuelve DD/MM/AAAA. Acepta ese mismo formato o AAAA-MM-DD (sorteos guardados antes del cambio).
+  function formatDate(value) {
+    if (!value) return '';
+    const iso = String(value).match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (iso) return `${iso[3]}/${iso[2]}/${iso[1]}`;
+    return isValidDate(value) ? value : '';
+  }
+
+  function isValidDate(text) {
+    const m = String(text).match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+    if (!m) return false;
+    const [d, mo, y] = [+m[1], +m[2], +m[3]];
+    const date = new Date(y, mo - 1, d);
+    return date.getFullYear() === y && date.getMonth() === mo - 1 && date.getDate() === d;
   }
 
   /* HTML del correo: tablas + estilos en línea para que se vea bien en Gmail, Outlook, etc. */
@@ -73,5 +82,5 @@ ${fromName ? `<tr><td align="center" style="padding:0 28px 24px;font-size:13px;c
 </td></tr></table></body></html>`;
   }
 
-  window.AI = { encodeToken, decodeToken, escapeHtml, formatDate, buildEmailHtml };
+  window.AI = { encodeToken, decodeToken, escapeHtml, formatDate, isValidDate, buildEmailHtml };
 })();

@@ -62,6 +62,16 @@
 
   bindInput('eventName', () => state.event.name, v => state.event.name = v);
   bindInput('eventBudget', () => state.event.budget, v => state.event.budget = v);
+  // Fecha en DD/MM/AAAA: las barras se ponen solas mientras se escribe
+  state.event.date = AI.formatDate(state.event.date) || state.event.date;
+  $('eventDate').addEventListener('input', ev => {
+    const el = $('eventDate');
+    if (!ev.inputType || !ev.inputType.startsWith('delete')) {
+      const digits = el.value.replace(/\D/g, '').slice(0, 8);
+      el.value = [digits.slice(0, 2), digits.slice(2, 4), digits.slice(4)].filter(Boolean).join('/');
+    }
+    el.classList.toggle('invalid', !!el.value && el.value.length === 10 && !AI.isValidDate(el.value));
+  });
   bindInput('eventDate', () => state.event.date, v => state.event.date = v);
   bindInput('mailSubject', () => state.subject, v => state.subject = v);
   bindInput('mailMessage', () => state.message, v => state.message = v);
@@ -373,6 +383,7 @@
   function validate() {
     if (state.participants.length < 3) return 'Necesitás al menos 3 participantes 🧑‍🤝‍🧑';
     if (!state.message.trim()) return 'Escribí un mensaje para el correo ✍️';
+    if (state.event.date && !AI.isValidDate(state.event.date)) return 'La fecha tiene que ser DD/MM/AAAA, por ejemplo 24/12/2026 📅';
     if (state.testMode && !isEmail(state.testEmail)) return 'Poné tu correo para el modo prueba 🧪';
     return null;
   }

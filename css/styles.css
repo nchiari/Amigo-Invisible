@@ -117,6 +117,7 @@ input:focus, textarea:focus, select:focus {
   outline: none; border-color: var(--coral);
   box-shadow: 0 0 0 4px rgba(244, 132, 95, .18);
 }
+input.invalid { border-color: var(--red); }
 textarea { resize: vertical; min-height: 90px; }
 .hint { margin: 0; font-size: .85rem; color: var(--muted); }
 .check { display: flex; gap: 10px; align-items: flex-start; font-size: .92rem; cursor: pointer; }
