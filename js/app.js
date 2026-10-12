@@ -16,6 +16,8 @@
     testMode: false,
     testEmail: '',
     draw: null, // [{ id, link, status }]
+    drawId: null,
+    sentDraw: null, // copia del último sorteo enviado de verdad: { id, at, pairs: [{ g, r }] }
     drafts: {}, // lo que está a medio escribir
     open: {}    // secciones desplegadas
   };
@@ -298,6 +300,27 @@
     return null;
   }
 
+  const decodeDraw = draw => draw.map(e => AI.decodeToken(new URL(e.link).searchParams.get('t')));
+
+  // Guarda aparte el sorteo enviado: si después cambia la lista o se sortea de nuevo, no se pierde
+  function archiveSent() {
+    if (state.testMode || !state.draw || !state.draw.some(e => e.status === 'ok')) return;
+    state.sentDraw = { id: state.drawId, at: Date.now(), pairs: decodeDraw(state.draw).map(({ g, r }) => ({ g, r })) };
+    save(); renderResults();
+  }
+
+  function renderSent() {
+    const s = state.sentDraw;
+    const isCurrent = s && state.draw && state.drawId === s.id;
+    $('sentBtn').classList.toggle('hidden', !s || isCurrent);
+    if (s) {
+      const d = new Date(s.at);
+      const when = `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+      $('sentBtn').textContent = `🔒 Ver el último sorteo enviado (${when})`;
+      $('sentBtn').dataset.when = when;
+    }
+  }
+
   function invalidateDraw() {
     if (state.draw) { state.draw = null; renderResults(); }
   }
@@ -376,6 +399,7 @@
     }
     sending = false;
     $('drawBtn').disabled = $('retryBtn').disabled = $('secretBtn').disabled = false;
+    archiveSent();
     const fails = state.draw.filter(e => e.status === 'error').length;
     toast(fails ? `⚠️ ${fails} correos fallaron` : '🎉 ¡Correos enviados!', 4000);
   }
@@ -399,6 +423,7 @@
     if (broken) { alert('⛔ Sorteo descartado: ' + broken); return false; }
 
     const drawId = uid();
+    state.drawId = drawId;
     state.draw = state.participants.map(p => ({
       id: p.id,
       link: buildLink(p, byId(assign[p.id]), drawId),
@@ -435,6 +460,7 @@
   };
 
   function renderResults() {
+    renderSent();
     const box = $('results');
     if (!state.draw) { box.classList.add('hidden'); return; }
     box.classList.remove('hidden');
@@ -484,24 +510,32 @@
     $('secretList').classList.add('hidden');
     $('secretList').innerHTML = '';
     $('secretActions').classList.add('hidden');
+    $('secretNote').classList.add('hidden');
   }
 
-  function openReview() {
+  let reviewMode = 'current'; // 'current' = sorteo actual, 'sent' = último enviado
+
+  function openReview(mode) {
+    reviewMode = mode === 'sent' ? 'sent' : 'current';
     resetSecret();
     $('secretDialog').showModal();
     $('codeInput').focus();
   }
-  $('secretBtn').addEventListener('click', openReview);
+  $('secretBtn').addEventListener('click', () => openReview('current'));
+  $('sentBtn').addEventListener('click', () => openReview('sent'));
 
   function showPairs() {
-    const pairs = (state.draw || []).map(e => AI.decodeToken(new URL(e.link).searchParams.get('t')));
+    const archived = reviewMode === 'sent';
+    const pairs = archived ? state.sentDraw.pairs : decodeDraw(state.draw || []);
+    $('secretNote').textContent = archived ? `📬 Sorteo enviado el ${$('sentBtn').dataset.when}` : '';
+    $('secretNote').classList.toggle('hidden', !archived);
     const to = Object.fromEntries(pairs.map(p => [p.g, p.r]));
     $('secretList').innerHTML = pairs.map(p => `
       <li><b>${AI.escapeHtml(p.g)}</b><span>🎁 →</span><b>${AI.escapeHtml(p.r)}</b>${to[p.r] === p.g ? '<i title="Se regalan entre sí">⇄</i>' : ''}</li>`).join('');
     $('secretList').classList.remove('hidden');
 
     // Envío desde la revisión: solo los que todavía no salieron
-    const toSend = (state.draw || []).filter(e => e.status !== 'ok').length;
+    const toSend = archived ? 0 : (state.draw || []).filter(e => e.status !== 'ok').length;
     $('secretActions').classList.toggle('hidden', !toSend);
     $('sendBtn').textContent = `📨 Está bien, enviar ${toSend} correo${toSend === 1 ? '' : 's'}`;
     $('sendInfo').textContent = state.testMode
