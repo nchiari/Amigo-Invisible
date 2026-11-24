@@ -53,7 +53,7 @@
   }
 
   /* HTML del correo: tablas + estilos en línea para que se vea bien en Gmail, Outlook, etc. */
-  function buildEmailHtml({ name, message, link, eventName, budget, date, fromName }) {
+  function buildEmailHtml({ hasNotes, name, message, link, eventName, budget, date, fromName }) {
     const msg = escapeHtml(message).replace(/\n/g, '<br>');
     const details = [
       budget ? `💶 <b>Presupuesto:</b> ${escapeHtml(budget)}` : '',
@@ -72,6 +72,7 @@
 <p style="margin:0 0 6px;font-size:20px;font-weight:700;">¡Hola, ${escapeHtml(name)}! 👋</p>
 <p style="margin:0 0 18px;">${msg}</p>
 ${details ? `<p style="margin:0 0 18px;padding:14px 16px;background:#fff4ec;border-radius:14px;font-size:15px;">${details}</p>` : ''}
+${hasNotes ? `<p style="margin:0 0 18px;padding:14px 16px;background:#eef8f6;border-radius:14px;font-size:15px;color:#1d2b45;">💡 Al abrir tu regalo vas a ver <b>pistas sobre sus gustos</b> para que aciertes.</p>` : ''}
 </td></tr>
 <tr><td align="center" style="padding:8px 28px 32px;">
 <a href="${escapeHtml(link)}" target="_blank" style="display:inline-block;background:#2a9d8f;color:#ffffff;text-decoration:none;font-weight:800;font-size:18px;padding:16px 32px;border-radius:999px;">🤫 Descubrir a quién le regalo</a>

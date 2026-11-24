@@ -385,7 +385,12 @@
   }
 
   function emailFor(p, link) {
+    // Solo se avisa que hay pistas; el contenido se ve recién al abrir el regalo
+    let hasNotes = false;
+    try { hasNotes = !!AI.decodeToken(new URL(link).searchParams.get('t')).n; } catch { /* vista previa */ }
+    if (new URL(link).searchParams.has('demo')) hasNotes = state.participants.some(x => x.notes);
     return AI.buildEmailHtml({
+      hasNotes,
       name: p.name,
       message: personalize(state.message, p),
       link,
