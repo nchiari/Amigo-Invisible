@@ -15,7 +15,7 @@
     fromName: '',
     testMode: false,
     testEmail: '',
-    draw: null, // [{ id, link, status }]
+    draw: null, // [{ id, to, link, status }]
     drawId: null,
     sentDraw: null, // copia del último sorteo enviado de verdad: { id, at, pairs: [{ g, r }] }
     drafts: {}, // lo que está a medio escribir
@@ -86,7 +86,7 @@
   bindInput('testEmail', () => state.testEmail, v => state.testEmail = v);
 
   /* ---------- Que F5 no borre nada ---------- */
-  ['pName', 'pEmail', 'bulkInput'].forEach(id => {
+  ['pName', 'pEmail', 'pNotes', 'bulkInput'].forEach(id => {
     const el = $(id);
     if (state.drafts[id]) el.value = state.drafts[id];
     el.addEventListener('input', () => { state.drafts[id] = el.value; save(); });
@@ -137,21 +137,21 @@
   }
 
   /* ---------- Participantes ---------- */
-  function addParticipant(name, email) {
-    name = name.trim(); email = email.trim().toLowerCase();
+  function addParticipant(name, email, notes = '') {
+    name = name.trim(); email = email.trim().toLowerCase(); notes = notes.trim().slice(0, 300);
     if (!name || !isEmail(email)) return 'invalid';
     if (state.participants.some(p => p.email === email)) return 'dup';
-    state.participants.push({ id: uid(), name, email });
+    state.participants.push({ id: uid(), name, email, notes });
     return 'ok';
   }
 
   $('addForm').addEventListener('submit', ev => {
     ev.preventDefault();
-    const r = addParticipant($('pName').value, $('pEmail').value);
+    const r = addParticipant($('pName').value, $('pEmail').value, $('pNotes').value);
     if (r === 'dup') return toast('Ese correo ya está en la lista 🤔');
     if (r === 'invalid') return toast('Revisá el nombre y el correo ✍️');
-    $('pName').value = ''; $('pEmail').value = '';
-    clearDrafts('pName', 'pEmail');
+    $('pName').value = ''; $('pEmail').value = ''; $('pNotes').value = '';
+    clearDrafts('pName', 'pEmail', 'pNotes');
     $('pName').focus();
     invalidateDraw();
     save(); renderAll();
@@ -161,8 +161,9 @@
     const lines = $('bulkInput').value.split('\n').map(l => l.trim()).filter(Boolean);
     let ok = 0, bad = 0;
     lines.forEach(l => {
-      const m = l.match(/^(.+?)[,;\t<]\s*([^\s,;<>]+@[^\s,;<>]+)>?$/);
-      if (m && addParticipant(m[1].replace(/["']/g, ''), m[2]) === 'ok') ok++; else bad++;
+      // Nombre, correo y, opcional, comentarios después del correo
+      const m = l.match(/^(.+?)[,;\t<]\s*([^\s,;<>]+@[^\s,;<>]+)>?\s*(?:[,;\t]\s*(.*))?$/);
+      if (m && addParticipant(m[1].replace(/["']/g, ''), m[2], m[3] || '') === 'ok') ok++; else bad++;
     });
     $('bulkInput').value = '';
     clearDrafts('bulkInput');
@@ -178,16 +179,45 @@
     save(); renderAll();
   }
 
+  function setNotes(id, notes) {
+    const p = byId(id);
+    if (!p) return;
+    p.notes = notes.trim().slice(0, 300);
+    refreshLinks();
+    save(); renderParticipants();
+  }
+
   function renderParticipants() {
     const list = $('participantList');
     list.innerHTML = '';
     state.participants.forEach((p, i) => {
       const li = document.createElement('li');
+      const name = AI.escapeHtml(p.name);
       li.innerHTML = `
         <span class="avatar" style="--h:${(i * 57) % 360}">${AI.escapeHtml(p.name.charAt(0).toUpperCase())}</span>
-        <span class="plist__info"><b>${AI.escapeHtml(p.name)}</b><small>${AI.escapeHtml(p.email)}</small></span>
-        <button class="icon-btn" type="button" aria-label="Quitar a ${AI.escapeHtml(p.name)}">✕</button>`;
-      li.querySelector('button').addEventListener('click', () => removeParticipant(p.id));
+        <span class="plist__info"><b>${name}</b><small>${AI.escapeHtml(p.email)}</small></span>
+        <button class="icon-btn" data-act="notes" type="button" title="${p.notes ? 'Editar comentarios' : 'Añadir comentarios'}" aria-label="Comentarios de ${name}">${p.notes ? '✏️' : '📝'}</button>
+        <button class="icon-btn" data-act="del" type="button" aria-label="Quitar a ${name}">✕</button>
+        <p class="plist__notes">${p.notes ? '💡 ' + AI.escapeHtml(p.notes) : ''}</p>`;
+      li.querySelector('[data-act=del]').addEventListener('click', () => removeParticipant(p.id));
+      li.querySelector('[data-act=notes]').addEventListener('click', () => {
+        if (li.querySelector('.plist__edit')) return;
+        li.querySelector('.plist__notes').classList.add('hidden');
+        const box = document.createElement('div');
+        box.className = 'plist__edit';
+        box.innerHTML = `<textarea maxlength="300" placeholder="Gustos, talles, qué no le regalarías…" aria-label="Comentarios de ${name}"></textarea>
+          <div><button class="btn btn--ghost btn--sm" data-act="cancel" type="button">Cancelar</button>
+          <button class="btn btn--primary btn--sm" data-act="save" type="button">Guardar</button></div>`;
+        const ta = box.querySelector('textarea');
+        ta.value = p.notes || '';
+        box.querySelector('[data-act=cancel]').addEventListener('click', renderParticipants);
+        box.querySelector('[data-act=save]').addEventListener('click', () => {
+          setNotes(p.id, ta.value);
+          toast('💡 Comentarios guardados');
+        });
+        li.appendChild(box);
+        ta.focus();
+      });
       list.appendChild(li);
     });
     $('countBadge').textContent = state.participants.length;
@@ -329,12 +359,25 @@
     const token = AI.encodeToken({
       i: drawId, // identifica el sorteo: los enlaces de pruebas viejas no lo tienen
       g: giver.name, r: receiver.name,
-      e: state.event.name, b: state.event.budget, d: state.event.date
+      e: state.event.name, b: state.event.budget, d: state.event.date,
+      ...(receiver.notes ? { n: receiver.notes } : {}) // comentarios de quien recibe
     });
     const url = new URL('ver.html', location.href);
     url.search = '?t=' + token;
     url.hash = '';
     return url.toString();
+  }
+
+  // Si se editan comentarios después de sortear, los enlaces se rehacen con la misma asignación
+  function refreshLinks() {
+    if (!state.draw) return;
+    const pairs = decodeDraw(state.draw);
+    state.draw.forEach((e, i) => {
+      const giver = byId(e.id);
+      const receiver = byId(e.to) || state.participants.find(p => p.name === pairs[i].r);
+      if (giver && receiver) { e.to = receiver.id; e.link = buildLink(giver, receiver, state.drawId); }
+    });
+    renderResults();
   }
 
   function personalize(text, p) {
@@ -426,6 +469,7 @@
     state.drawId = drawId;
     state.draw = state.participants.map(p => ({
       id: p.id,
+      to: assign[p.id],
       link: buildLink(p, byId(assign[p.id]), drawId),
       status: 'pending'
     }));

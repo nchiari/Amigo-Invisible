@@ -48,14 +48,16 @@
       <form id="addForm" class="add-form" autocomplete="off">
         <input id="pName" type="text" placeholder="Nombre" required maxlength="40">
         <input id="pEmail" type="email" placeholder="correo@ejemplo.com" required>
+        <textarea id="pNotes" rows="2" maxlength="300" placeholder="Gustos, talles, qué no le regalarías… (opcional)"></textarea>
         <button class="btn btn--primary" type="submit" aria-label="Añadir participante">＋ Añadir</button>
       </form>
       <details id="bulk" class="bulk">
         <summary>📋 Pegar una lista entera</summary>
-        <p class="hint">Una persona por línea: <code>Nombre, correo</code></p>
-        <textarea id="bulkInput" rows="4" placeholder="Nancy, nancy@mail.com&#10;Santi, santi@mail.com"></textarea>
+        <p class="hint">Una persona por línea: <code>Nombre, correo</code> y, si querés, <code>, comentarios</code> al final.</p>
+        <textarea id="bulkInput" rows="4" placeholder="Nancy, nancy@mail.com, le encanta el café&#10;Santi, santi@mail.com"></textarea>
         <button id="bulkAdd" class="btn btn--ghost" type="button">Añadir todos</button>
       </details>
+      <p class="hint">💡 Los comentarios los ve solo quien le tenga que regalar a esa persona, al abrir su regalo.</p>
       <ul id="participantList" class="plist"></ul>
       <p id="emptyList" class="empty">Todavía no hay nadie. ¡Sumá al menos 3 personas! 🧑‍🤝‍🧑</p>
     </section>

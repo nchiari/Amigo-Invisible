@@ -5,7 +5,7 @@
 
   let data = null;
   if (params.has('demo')) {
-    data = { i: 'demo', g: 'Nancy', r: 'Rufi 🐶', e: 'Navidad en familia', b: '30 €', d: '' };
+    data = { i: 'demo', g: 'Nancy', r: 'Rufi 🐶', e: 'Navidad en familia', b: '30 €', d: '', n: 'Le encantan las pelotas que chillan y los premios de pollo. Nada de ropa 🙅' };
   } else {
     try { data = AI.decodeToken(params.get('t') || location.hash.slice(1)); } catch { data = null; }
   }
@@ -48,6 +48,10 @@
     data.d ? `<span>📅 ${AI.escapeHtml(AI.formatDate(data.d))}</span>` : ''
   ].join('');
   $('details').innerHTML = details;
+  if (data.n) {
+    $('notesText').textContent = data.n;
+    $('notes').classList.remove('hidden');
+  }
 
   let opened = false;
   $('gift').addEventListener('click', () => {
